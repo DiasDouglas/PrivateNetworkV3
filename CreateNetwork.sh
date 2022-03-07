@@ -15,6 +15,10 @@ GenerateGenesisFiles() {
     echo -e "Genesis Files Created\n\n"
 }
 
+# Removing older network and logs folders, if they exists
+rm -rf network
+rm -rf logs
+
 NODES=1
 
 if [ $# -eq 0 ] || [ $1 -eq 1 ]; then
@@ -79,7 +83,23 @@ for ((i = 1; i <= $NODES; i++)); do
 done
 echo -e "Operational Certificates Issued \n\n"
 
-# Step 9: Copy and edit configuration file, shared with all nodes
+# Step 9: Creating Payment Keys
+echo Creating Payment Keys
+
+for ((i = 1; i <= $NODES; i++)); do
+    cardano-cli address key-gen --verification-key-file network/node"$i"/payment.vkey --signing-key-file network/node"$i"/payment.skey
+done
+echo -e "Payment Keys Created \n\n"
+
+# Step 10: Creating Wallet Addresses
+echo Creating Wallet Addresses
+
+for ((i = 1; i <= $NODES; i++)); do
+    cardano-cli address build --payment-verification-key-file network/node"$i"/payment.vkey --out-file network/node"$i"/payment.addr --testnet-magic 42
+done
+echo -e "Wallet Addresses Created\n\n"
+
+# Step 11: Copy and edit configuration file, shared with all nodes
 echo Copying the configuration file
 cp utils/byron-mainnet/configuration.yaml network/
 sed -i 's/^Protocol: RealPBFT/Protocol: TPraos/' network/configuration.yaml
@@ -87,7 +107,7 @@ sed -i 's/^minSeverity: Info/minSeverity: Debug/' network/configuration.yaml
 sed -i 's/^TraceBlockchainTime: False/TraceBlockchainTime: True/' network/configuration.yaml
 echo -e "Configuration file copied and edited \n\n"
 
-#Step 10: Creating topology files
+#Step 12: Creating topology files
 for ((i = 1; i <= $NODES; i++)); do
     touch network/node$i/topology.json
 
@@ -130,10 +150,10 @@ for ((i = 1; i <= $NODES; i++)); do
 done
 echo -e "Topology files created \n\n"
 
-#Step 11: Creating Genesis Files Again
+# Step 13: Creating Genesis Files Again
 GenerateGenesisFiles $NODES
 
-#Step 12: Starting the Nodes
+#Step 14: Starting the Nodes
 echo Starting the Nodes
 
 for ((i = 1; i <= $NODES; i++)); do
@@ -143,3 +163,18 @@ for ((i = 1; i <= $NODES; i++)); do
 done
 echo -e "Nodes Started \n\n"
 
+# Sleep for some time, so the nodes synchronize
+sleep 30
+
+# Step 15: Create metadata file
+echo Create metadata file
+
+mkdir network/metadata
+touch network/metadata/metadata.json
+METADATA_FILE="network/metadata/metadata.json"
+printf "{\n\t\"1337\": {\n\t\t\"name\": \"hello world\",\n\t\t\"completed\": 0\n\t}\n}" >>$METADATA_FILE
+
+printf "Metadata File Created \n\n"
+
+# Step 16: Query UTXO
+CARDANO_NODE_SOCKET_PATH=network/node1/node.sock cardano-cli query utxo --testnet-magic 42 --address $(cat network/node1/payment.addr) --cardano-mode
