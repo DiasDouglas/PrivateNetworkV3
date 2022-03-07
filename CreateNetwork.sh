@@ -3,10 +3,15 @@
 #Author: Douglas Dias
 
 GenerateGenesisFiles() {
+    NODES=$1
+    
+    # Determines the quorum needed for votes on the protocol parameter updates
+    QUORUM=$(((NODES/2)+1))
+
     echo Creating Genesis Files
     cardano-cli shelley genesis create --testnet-magic 42 --genesis-dir network/ --supply 12000000
-    sed -i "/updateQuorum/c\ \"updateQuorum\": 50," network/genesis.json
-    sed -i "/updateQuorum/c\ \"updateQuorum\": 50," network/genesis.spec.json
+    sed -i "/updateQuorum/c\ \"updateQuorum\": $(($QUORUM))," network/genesis.json
+    sed -i "/updateQuorum/c\ \"updateQuorum\": $(($QUORUM))," network/genesis.spec.json
     echo -e "Genesis Files Created\n\n"
 }
 
@@ -20,7 +25,7 @@ else
 fi
 
 # Step 1: Creating Genesis Files
-GenerateGenesisFiles
+GenerateGenesisFiles $NODES
 
 # Step 2: Creating Genesis Keys
 echo Creating Genesis Keys
@@ -55,7 +60,7 @@ done
 echo -e "VRF Keys Created \n\n"
 
 #Step 6: Creating Genesis Files Again
-GenerateGenesisFiles
+GenerateGenesisFiles $NODES
 
 #Step 7: Creating KES Keys
 echo Creating KES keys
@@ -126,7 +131,7 @@ done
 echo -e "Topology files created \n\n"
 
 #Step 11: Creating Genesis Files Again
-GenerateGenesisFiles
+GenerateGenesisFiles $NODES
 
 #Step 12: Starting the Nodes
 echo Starting the Nodes
